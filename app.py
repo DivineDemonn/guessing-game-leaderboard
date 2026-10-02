@@ -16,7 +16,7 @@ try:
     db = client.get_default_database()
 except Exception:
     # Fallback if no database name is specified in your Heroku Config Vars
-    db = client.get_database("guessin_game") 
+    db = client.get_database("guessin_game_db") 
 
 @app.route('/')
 def index():
