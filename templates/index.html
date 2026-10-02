@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global Leaderboards</title>
+    <!-- Telegram Web App Integration -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #050505;
+            --card-bg: rgba(20, 20, 25, 0.9);
+            --primary: #00ffcc;
+            --secondary: #ff0055;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --gold: #ffcc00;
+            --silver: #e0e0e0;
+            --bronze: #cd7f32;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            background-image: radial-gradient(circle at top, #1a0033 0%, #050505 60%);
+            background-attachment: fixed;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            padding: 5px;
+            border: 1px solid #333;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 10px 5px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s ease;
+        }
+
+        .tab-btn.active {
+            color: var(--bg-color);
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border-left: 4px solid #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .player-card.rank-1 { border-left-color: var(--gold); box-shadow: 0 0 15px rgba(255, 204, 0, 0.2); }
+        .player-card.rank-2 { border-left-color: var(--silver); }
+        .player-card.rank-3 { border-left-color: var(--bronze); }
+
+        .rank {
+            font-size: 20px;
+            font-weight: 700;
+            width: 40px;
+        }
+
+        .name {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .score {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--secondary);
+            text-shadow: 0 0 5px rgba(255, 0, 85, 0.5);
+        }
+
+        .score-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: 5px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 18px;
+            margin-top: 50px;
+        }
+
+        @keyframes slideIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            text-align: center;
+            margin-top: 50px;
+            color: var(--primary);
+            font-size: 18px;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.5; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="titleText">Hall of Records</h1>
+
+    <div class="tabs">
+        <button class="tab-btn" id="btn-earners" onclick="loadSection('earners')">💰 Earners</button>
+        <button class="tab-btn" id="btn-duelists" onclick="loadSection('duelists')">⚔️ Duelists</button>
+        <button class="tab-btn" id="btn-champions" onclick="loadSection('champions')">🏟️ Champions</button>
+    </div>
+
+    <div id="list-container" class="leaderboard-list">
+        <!-- Players loaded here via JS -->
+    </div>
+
+    <script>
+        // Initialize Telegram Web App
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+
+        // Get the initial section passed from the Flask backend (from URL parameter)
+        const initialSection = "{{ initial_section }}";
+
+        const medals = ["🥇", "🥈", "🥉"];
+
+        function loadSection(section) {
+            // Update UI Tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${section}`).classList.add('active');
+
+            const container = document.getElementById('list-container');
+            container.innerHTML = '<div class="loader">Accessing Databanks...</div>';
+
+            // Fetch live data from backend
+            fetch(`/api/stats/${section}`)
+                .then(response => response.json())
+                .then(data => {
+                    container.innerHTML = '';
+                    if (data.length === 0) {
+                        container.innerHTML = '<div class="empty-state">No records found for this category yet.</div>';
+                        return;
+                    }
+
+                    data.forEach((player, index) => {
+                        let rankDisplay = (index < 3) ? medals[index] : `#${index + 1}`;
+                        let cardClass = (index < 3) ? `rank-${index + 1}` : 'rank-other';
+                        let delay = index * 0.05;
+
+                        const card = document.createElement('div');
+                        card.className = `player-card ${cardClass}`;
+                        card.style.animationDelay = `${delay}s`;
+                        
+                        card.innerHTML = `
+                            <div class="rank">${rankDisplay}</div>
+                            <div class="name">${player.name}</div>
+                            <div class="score">${player.score} <span class="score-label">${player.label}</span></div>
+                        `;
+                        container.appendChild(card);
+                    });
+                })
+                .catch(error => {
+                    container.innerHTML = '<div class="empty-state">Network Error: Failed to retrieve archives.</div>';
+                    console.error("Error fetching leaderboard:", error);
+                });
+        }
+
+        // Auto-load the section requested by the Telegram Bot button
+        loadSection(initialSection);
+    </script>
+</body>
+</html>
