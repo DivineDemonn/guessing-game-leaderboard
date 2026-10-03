@@ -34,7 +34,7 @@
 
         h1 {
             text-align: center;
-            font-size: 28px;
+            font-size: 26px;
             text-transform: uppercase;
             letter-spacing: 2px;
             text-shadow: 0 0 10px var(--primary);
@@ -49,6 +49,7 @@
             border-radius: 10px;
             padding: 5px;
             border: 1px solid #333;
+            gap: 6px;
         }
 
         .tab-btn {
@@ -56,14 +57,15 @@
             background: transparent;
             color: var(--text-muted);
             border: none;
-            padding: 10px 5px;
+            padding: 10px 4px;
             font-family: 'Rajdhani', sans-serif;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             text-transform: uppercase;
             cursor: pointer;
             border-radius: 8px;
             transition: 0.3s ease;
+            white-space: nowrap;
         }
 
         .tab-btn.active {
@@ -104,31 +106,33 @@
 
         .name {
             flex: 1;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 700;
             letter-spacing: 1px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            padding: 0 10px;
         }
 
         .score {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: var(--secondary);
             text-shadow: 0 0 5px rgba(255, 0, 85, 0.5);
+            white-space: nowrap;
         }
 
         .score-label {
             font-size: 12px;
             color: var(--text-muted);
-            margin-left: 5px;
+            margin-left: 4px;
         }
 
         .empty-state {
             text-align: center;
             color: var(--text-muted);
-            font-size: 18px;
+            font-size: 16px;
             margin-top: 50px;
         }
 
@@ -155,39 +159,45 @@
     <h1 id="titleText">Hall of Records</h1>
 
     <div class="tabs">
-        <button class="tab-btn" id="btn-earners" onclick="loadSection('earners')">💰 Earners</button>
-        <button class="tab-btn" id="btn-duelists" onclick="loadSection('duelists')">⚔️ Duelists</button>
-        <button class="tab-btn" id="btn-champions" onclick="loadSection('champions')">🏟️ Champions</button>
+        <button class="tab-btn" id="btn-group" onclick="loadSection('group')">🏟️ Group</button>
+        <button class="tab-btn" id="btn-solo" onclick="loadSection('solo')">🎮 Solo</button>
+        <button class="tab-btn" id="btn-speedrun" onclick="loadSection('speedrun')">⏱️ Speedrun</button>
     </div>
 
     <div id="list-container" class="leaderboard-list">
-        <!-- Players loaded here via JS -->
+        <!-- Records loaded dynamically -->
     </div>
 
     <script>
-        // Initialize Telegram Web App
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
 
-        // Get the initial section passed from the Flask backend (from URL parameter)
-        const initialSection = "{{ initial_section }}";
+        // Reads initial parameter passed from the server or Telegram StartApp
+        let initialSection = "{{ initial_section }}";
+        if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.start_param) {
+            initialSection = window.Telegram.WebApp.initDataUnsafe.start_param;
+        }
+
+        const validSections = ["group", "solo", "speedrun"];
+        if (!validSections.includes(initialSection)) {
+            initialSection = "group";
+        }
 
         const medals = ["🥇", "🥈", "🥉"];
 
         function loadSection(section) {
-            // Update UI Tabs
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`btn-${section}`).classList.add('active');
+            const activeBtn = document.getElementById(`btn-${section}`);
+            if (activeBtn) activeBtn.classList.add('active');
 
             const container = document.getElementById('list-container');
             container.innerHTML = '<div class="loader">Accessing Databanks...</div>';
 
-            // Fetch live data from backend
             fetch(`/api/stats/${section}`)
                 .then(response => response.json())
                 .then(data => {
                     container.innerHTML = '';
-                    if (data.length === 0) {
+                    if (!data || data.length === 0) {
                         container.innerHTML = '<div class="empty-state">No records found for this category yet.</div>';
                         return;
                     }
@@ -195,7 +205,7 @@
                     data.forEach((player, index) => {
                         let rankDisplay = (index < 3) ? medals[index] : `#${index + 1}`;
                         let cardClass = (index < 3) ? `rank-${index + 1}` : 'rank-other';
-                        let delay = index * 0.05;
+                        let delay = index * 0.04;
 
                         const card = document.createElement('div');
                         card.className = `player-card ${cardClass}`;
@@ -211,11 +221,10 @@
                 })
                 .catch(error => {
                     container.innerHTML = '<div class="empty-state">Network Error: Failed to retrieve archives.</div>';
-                    console.error("Error fetching leaderboard:", error);
+                    console.error("Error loading stats:", error);
                 });
         }
 
-        // Auto-load the section requested by the Telegram Bot button
         loadSection(initialSection);
     </script>
 </body>
