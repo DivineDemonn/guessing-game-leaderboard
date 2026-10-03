@@ -14,7 +14,7 @@ client = MongoClient(MONGO_URI)
 try:
     db = client.get_default_database()
 except Exception:
-    db = client.get_database("Guessin_game_db")
+    db = client.get_database("guessin_game_db")
 
 
 @app.route('/')
